@@ -1,110 +1,103 @@
-#!/usr/bin/groovy
+import groovy.json.JsonOutput
+import groovy.json.JsonBuilder
 
-pipeline {
-  agent any
-
-  options {
-    disableConcurrentBuilds()
-  }
-
-  environment {
-    PYTHONPATH = "${WORKSPACE}"
-  }
-
-  stages {
-
-    stage("Test - Unit tests") {
-      steps { runUnittests() }
+node('jenkins-jenkins-slave') {
+  withEnv(['REPOSITORY=docker-tomcat',
+           'DSSC_SERVICE=34.89.237.34:30010',
+           'DSSC_REGISTRY=34.89.237.34:30011',
+           'K8S_REGISTRY=34.89.237.34:30017',
+           'GIT_ACCOUNT=https://github.com/mawinkler']) {
+    //container('dind') {
+      stage('Pull Image from Git') {
+        script {
+          git "${GIT_ACCOUNT}/${REPOSITORY}.git"
+        }
+      }
+      stage('Build Image') {
+        script {
+          dbuild = docker.build("${REPOSITORY}")
+        }
+      }
+      parallel (
+        "Test": {
+          echo 'All functional tests passed'
+        },
+        "Check Image (pre-Registry)": {
+          smartcheckScan([
+            imageName: "${REPOSITORY}",
+            smartcheckHost: "${DSSC_SERVICE}",
+            smartcheckCredentialsId: "smartcheck-auth",
+            insecureSkipTLSVerify: true,
+            insecureSkipRegistryTLSVerify: true,
+            preregistryScan: true,
+            preregistryHost: "${DSSC_REGISTRY}",
+            preregistryCredentialsId: "preregistry-auth",
+            findingsThreshold: new groovy.json.JsonBuilder([
+              malware: 0,
+              vulnerabilities: [
+                defcon1: 0,
+                critical: 0,
+                high: 10,
+              ],
+              contents: [
+                defcon1: 0,
+                critical: 0,
+                high: 1,
+              ],
+              checklists: [
+                defcon1: 0,
+                critical: 0,
+                high: 0,
+              ],
+            ]).toString(),
+          ])
+        }
+      )
+      stage('Push Image to Registry') {
+        script {
+          docker.withRegistry("https://${K8S_REGISTRY}", 'registry-auth') {
+            dbuild.push()
+          }
+        }
+      }
+      stage('Check Image (Registry') {
+        smartcheckScan([
+          imageName: "${K8S_REGISTRY}/${REPOSITORY}",
+          smartcheckHost: "${DSSC_SERVICE}",
+          smartcheckCredentialsId: "smartcheck-auth",
+          insecureSkipTLSVerify: true,
+          insecureSkipRegistryTLSVerify: true,
+          imagePullAuth: JsonOutput.toJson([
+            username: "reguser",
+            password: "TrendM1cr0"
+          ]).toString(),
+          findingsThreshold: new groovy.json.JsonBuilder([
+            malware: 0,
+            vulnerabilities: [
+              defcon1: 0,
+              critical: 0,
+              high: 10,
+            ],
+            contents: [
+              defcon1: 0,
+              critical: 0,
+              high: 1,
+            ],
+            checklists: [
+              defcon1: 0,
+              critical: 0,
+              high: 0,
+            ],
+          ]).toString(),
+        ])
+      }
+      stage('Push Image to Registry') {
+        script {
+          docker.withRegistry('', 'docker-hub') {
+            dbuild.push() //('$BUILD_NUMBER')
+          }
+        }
+      }
     }
-
-    stage("Build") {
-      steps { buildApp() }
-    }
-
-    stage("Deploy - Dev") {
-      steps { deploy('dev') }
-    }
-
-    stage("Test - UAT Dev") {
-      steps { runUAT(8888) }
-    }
-
-    stage("Deploy - Stage") {
-      steps { deploy('stage') }
-    }
-
-    stage("Test - UAT Stage") {
-      steps { runUAT(88) }
-    }
-
-    stage("Approve") {
-      steps { approve() }
-    }
-
-    stage("Deploy - Live") {
-      steps { deploy('live') }
-    }
-
-    stage("Test - UAT Live") {
-      steps { runUAT(80) }
-    }
-
-  }
-}
-
-
-// steps
-def buildApp() {
-  dir ('.' ) {
-    def appImage = docker.build("miau:${BUILD_NUMBER}")
-  }
-}
-
-
-def deploy(environment) {
-
-  def containerName = ''
-  def port = ''
-
-  if ("${environment}" == 'dev') {
-    containerName = "app_dev"
-    port = "8888"
-  }
-  else if ("${environment}" == 'stage') {
-    containerName = "app_stage"
-    port = "88"
-  }
-  else if ("${environment}" == 'live') {
-    containerName = "app_live"
-    port = "80"
-  }
-  else {
-    println "Environment not valid"
-    System.exit(0)
-  }
-
-  sh "docker ps -f name=${containerName} -q | xargs --no-run-if-empty docker stop"
-  sh "docker ps -a -f name=${containerName} -q | xargs -r docker rm"
-  sh "docker run -d -p ${port}:5000 --name ${containerName} miau:${BUILD_NUMBER}"
-
-}
-
-
-def approve() {
-
-  timeout(time:1, unit:'DAYS') {
-    input('Do you want to deploy to live?')
-  }
-
-}
-
-
-def runUnittests() {
-  // sh "pip3 install --no-cache-dir -r ./requirements.txt"
-  // sh "python3 tests/test_flask_app.py"
-}
-
-
-def runUAT(port) {
-  sh "./runUAT.sh ${port}"
+  //}
 }

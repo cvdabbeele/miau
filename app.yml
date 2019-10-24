@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: miau
+  labels:
+    app: miau
+spec:
+  type: NodePort
+  ports:
+  - port: 5000
+    name: miau
+    targetPort: 5000
+    nodePort: 30100
+  selector:
+    app: miau
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: miau
+  name: miau
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: miau
+    spec:
+      containers:
+      - name: miau
+        image: mawinkler/miau:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000

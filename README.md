@@ -1,2 +1,2 @@
 # miau
-MOADDS-NG Smartcheck, Jenkins and Kubernetes Demo
+MOADDS-NG Smartcheck, Jenkins and Kubernetes Demo App

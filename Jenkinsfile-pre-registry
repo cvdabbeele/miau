@@ -55,6 +55,7 @@ node('jenkins-jenkins-slave') {
       script {
         docker.withRegistry('', 'docker-hub') {
           dbuild.push('$BUILD_NUMBER')
+          dbuild.push('latest')
         }
       }
     }

@@ -61,7 +61,7 @@ node('jenkins-jenkins-slave') {
     }
     stage('Deploy App to Kubernetes') {
       script {
-        kubernetesDeploy(configs: "app.yml", kubeconfigId: "kubeconfig")
+        kubernetesDeploy(configs: "app.yml", kubeconfigId: "kubeconfig", enableConfigSubstitution: true)
       }
     }
   }

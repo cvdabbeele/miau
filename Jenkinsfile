@@ -54,7 +54,8 @@ node('jenkins-jenkins-slave') {
     stage('Push Image to Registry') {
       script {
         docker.withRegistry("https://${K8S_REGISTRY}", 'registry-auth') {
-          dbuild.push()
+          dbuild.push('$BUILD_NUMBER')
+          dbuild.push('latest')
         }
       }
     }
@@ -101,6 +102,7 @@ node('jenkins-jenkins-slave') {
       script {
         docker.withRegistry('', 'docker-hub') {
           dbuild.push('$BUILD_NUMBER')
+          dbuild.push('latest')
         }
       }
     }

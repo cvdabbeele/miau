@@ -13,8 +13,9 @@ images = [
 
 @app.route('/')
 def index():
+    f=open("/etc/os-release", "r").read()
     url = random.choice(images)
-    return render_template('index.html', url=url)
+    return render_template('index.html', url=url, f=f)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0")

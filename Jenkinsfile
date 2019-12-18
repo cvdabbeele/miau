@@ -10,7 +10,7 @@ node('jenkins-jenkins-slave') {
     }
     stage('Build Image') {
       script {
-        dbuild = docker.build("mawinkler/${REPOSITORY}:$BUILD_NUMBER")
+        dbuild = docker.build("miau/${REPOSITORY}:$BUILD_NUMBER")
       }
     }
     parallel (
@@ -22,7 +22,7 @@ node('jenkins-jenkins-slave') {
       },
       "Check Image (pre-Registry)": {
         smartcheckScan([
-          imageName: "mawinkler/${REPOSITORY}:$BUILD_NUMBER",
+          imageName: "miau/${REPOSITORY}:$BUILD_NUMBER",
           smartcheckHost: "${DSSC_SERVICE}",
           smartcheckCredentialsId: "smartcheck-auth",
           insecureSkipTLSVerify: true,
@@ -68,7 +68,7 @@ node('jenkins-jenkins-slave') {
         ])
       ]){
         smartcheckScan([
-          imageName: "${K8S_REGISTRY}/mawinkler/${REPOSITORY}:$BUILD_NUMBER",
+          imageName: "${K8S_REGISTRY}/miau/${REPOSITORY}:$BUILD_NUMBER",
           smartcheckHost: "${DSSC_SERVICE}",
           smartcheckCredentialsId: "smartcheck-auth",
           insecureSkipTLSVerify: true,
@@ -96,14 +96,6 @@ node('jenkins-jenkins-slave') {
             ],
           ]).toString(),
         ])
-      }
-    }
-    stage('Push Image to Registry') {
-      script {
-        docker.withRegistry('', 'docker-hub') {
-          dbuild.push('$BUILD_NUMBER')
-          dbuild.push('latest')
-        }
       }
     }
     stage('Deploy App to Kubernetes') {

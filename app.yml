@@ -31,7 +31,9 @@ spec:
     spec:
       containers:
       - name: miau
-        image: mawinkler/miau:latest
+        image: $K8S_REGISTRY/miau/miau:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 5000
+      imagePullSecrets:
+      - name: $KUBERNETES_SECRET_NAME

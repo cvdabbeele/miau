@@ -100,7 +100,12 @@ node('jenkins-jenkins-slave') {
     }
     stage('Deploy App to Kubernetes') {
       script {
-        kubernetesDeploy(configs: "app.yml", kubeconfigId: "kubeconfig", enableConfigSubstitution: true)
+        kubernetesDeploy(configs: "app.yml",
+                         kubeconfigId: "kubeconfig",
+                         enableConfigSubstitution: true,
+                         dockerCredentials: [
+                           [credentialsId: "registry-auth", url: "${K8S_REGISTRY}"],
+                         ])
       }
     }
   }

@@ -10,7 +10,7 @@ node('jenkins-jenkins-slave') {
     }
     stage('Build Image') {
       script {
-        dbuild = docker.build("mawinkler/${REPOSITORY}:$BUILD_NUMBER")
+        dbuild = docker.build("miau/${REPOSITORY}:$BUILD_NUMBER")
       }
     }
     parallel (
@@ -22,7 +22,7 @@ node('jenkins-jenkins-slave') {
       },
       "Check Image (pre-Registry)": {
         smartcheckScan([
-          imageName: "mawinkler/${REPOSITORY}:$BUILD_NUMBER",
+          imageName: "miau/${REPOSITORY}:$BUILD_NUMBER",
           smartcheckHost: "${DSSC_SERVICE}",
           smartcheckCredentialsId: "smartcheck-auth",
           insecureSkipTLSVerify: true,
@@ -51,9 +51,9 @@ node('jenkins-jenkins-slave') {
         ])
       }
     )
-    stage('Push Image to Docker Hub') {
+    stage('Push Image to Registry') {
       script {
-        docker.withRegistry('', 'docker-hub') {
+        docker.withRegistry("https://${K8S_REGISTRY}", 'registry-auth') {
           dbuild.push('$BUILD_NUMBER')
           dbuild.push('latest')
         }
@@ -61,7 +61,14 @@ node('jenkins-jenkins-slave') {
     }
     stage('Deploy App to Kubernetes') {
       script {
-        kubernetesDeploy(configs: "app.yml", kubeconfigId: "kubeconfig", enableConfigSubstitution: true)
+                         // secretNamespace: "default",
+                         // secretName: "cluster-registry2",
+        kubernetesDeploy(configs: "app.yml",
+                         kubeconfigId: "kubeconfig",
+                         enableConfigSubstitution: true,
+                         dockerCredentials: [
+                           [credentialsId: "registry-auth", url: "${K8S_REGISTRY}"],
+                         ])
       }
     }
   }
